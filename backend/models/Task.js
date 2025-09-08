@@ -1,38 +1,60 @@
-const db = require('../config/database');
+const { mongoose } = require('../config/database');
+
+const taskSchema = new mongoose.Schema({
+    title: {
+        type: String,
+        required: true
+    },
+    description: {
+        type: String,
+        default: ''
+    },
+    completed: {
+        type: Boolean,
+        default: false
+    },
+    created_at: {
+        type: Date,
+        default: Date.now
+    },
+    updated_at: {
+        type: Date,
+        default: Date.now
+    }
+});
+
+const TaskModel = mongoose.model('Task', taskSchema);
 
 class Task {
     static async create(title, description = '') {
-        const [result] = await db.execute(
-            'INSERT INTO tasks (title, description, completed, created_at) VALUES (?, ?, ?, NOW())',
-            [title, description, false]
-        );
-        return result.insertId;
+        const task = new TaskModel({
+            title,
+            description,
+            completed: false
+        });
+        await task.save();
+        return task._id;
     }
 
     static async findAll() {
-        const [rows] = await db.execute(
-            'SELECT * FROM tasks ORDER BY created_at DESC'
-        );
-        return rows;
+        return await TaskModel.find().sort({ created_at: -1 });
     }
 
     static async findById(id) {
-        const [rows] = await db.execute(
-            'SELECT * FROM tasks WHERE id = ?',
-            [id]
-        );
-        return rows[0];
+        return await TaskModel.findById(id);
     }
 
     static async update(id, title, description, completed) {
-        await db.execute(
-            'UPDATE tasks SET title = ?, description = ?, completed = ? WHERE id = ?',
-            [title, description, completed, id]
-        );
+        await TaskModel.findByIdAndUpdate(id, {
+            title,
+            description,
+            completed,
+            updated_at: Date.now()
+        });
     }
 
     static async delete(id) {
-        await db.execute('DELETE FROM tasks WHERE id = ?', [id]);
+        await TaskModel.findByIdAndDelete(id);
     }
 }
 

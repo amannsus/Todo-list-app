@@ -23,12 +23,21 @@ class TodoApp {
 
     async loadTasks() {
         try {
-            const response = await fetch('/api/tasks');
+            const response = await fetch('http://localhost:3000/api/tasks');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             this.tasks = await response.json();
+            if (!Array.isArray(this.tasks)) {
+                console.error('Expected tasks to be an array but got:', typeof this.tasks);
+                this.tasks = [];
+            }
             this.renderTasks();
         } catch (error) {
             console.error('Error loading tasks:', error);
             this.showError('Failed to load tasks');
+            this.tasks = [];
+            this.renderTasks();
         }
     }
 
@@ -59,7 +68,7 @@ class TodoApp {
     }
 
     async createTask(title, description) {
-        const response = await fetch('/api/tasks', {
+        const response = await fetch('http://localhost:3000/api/tasks', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -76,7 +85,7 @@ class TodoApp {
         const task = this.tasks.find(t => t.id == id);
         const completedStatus = completed !== null ? completed : task.completed;
         
-        const response = await fetch(`/api/tasks/${id}`, {
+        const response = await fetch(`http://localhost:3000/api/tasks/${id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -95,7 +104,7 @@ class TodoApp {
         }
         
         try {
-            const response = await fetch(`/api/tasks/${id}`, {
+            const response = await fetch(`http://localhost:3000/api/tasks/${id}`, {
                 method: 'DELETE'
             });
             
@@ -152,6 +161,11 @@ class TodoApp {
     }
 
     getFilteredTasks() {
+        if (!Array.isArray(this.tasks)) {
+            console.error('this.tasks is not an array:', this.tasks);
+            return [];
+        }
+        
         switch (this.currentFilter) {
             case 'completed':
                 return this.tasks.filter(task => task.completed);
@@ -166,6 +180,13 @@ class TodoApp {
         const taskList = document.getElementById('taskList');
         const emptyState = document.getElementById('emptyState');
         const filteredTasks = this.getFilteredTasks();
+
+        if (!Array.isArray(filteredTasks)) {
+            console.error('filteredTasks is not an array:', filteredTasks);
+            taskList.innerHTML = '';
+            emptyState.style.display = 'block';
+            return;
+        }
 
         if (filteredTasks.length === 0) {
             taskList.innerHTML = '';
