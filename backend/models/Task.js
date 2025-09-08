@@ -23,6 +23,16 @@ const taskSchema = new mongoose.Schema({
     }
 });
 
+// Normalize JSON output: expose `id` (string) and hide `_id` and `__v`
+taskSchema.set('toJSON', {
+    virtuals: true,
+    versionKey: false,
+    transform: (_, ret) => {
+        ret.id = ret._id.toString();
+        delete ret._id;
+    }
+});
+
 const TaskModel = mongoose.model('Task', taskSchema);
 
 class Task {
