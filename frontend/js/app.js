@@ -3,35 +3,44 @@ class TodoApp {
         this.tasks = [];
         this.currentFilter = 'all';
         this.editingTaskId = null;
+        this.API_BASE = '/api/tasks'; // same-origin requests
         this.init();
     }
 
     init() {
         this.loadTasks();
-        this.bindEvents();
+        this.bindStaticEvents();
     }
 
-    bindEvents() {
+    bindStaticEvents() {
         document.getElementById('taskForm').addEventListener('submit', this.handleSubmit.bind(this));
         document.getElementById('cancelBtn').addEventListener('click', this.cancelEdit.bind(this));
-        
+
         // Filter buttons
         document.querySelectorAll('.filter-btn').forEach(btn => {
             btn.addEventListener('click', this.handleFilter.bind(this));
         });
     }
 
+    bindDynamicEvents() {
+        const taskList = document.getElementById('taskList');
+        taskList.querySelectorAll('button[data-action]').forEach(btn => {
+            const id = btn.dataset.id;
+            const action = btn.dataset.action;
+            if (action === 'toggle') btn.addEventListener('click', () => this.toggleComplete(id));
+            if (action === 'edit') btn.addEventListener('click', () => this.editTask(id));
+            if (action === 'delete') btn.addEventListener('click', () => this.deleteTask(id));
+        });
+    }
+
     async loadTasks() {
         try {
-            const response = await fetch('http://localhost:3000/api/tasks');
+            const response = await fetch(this.API_BASE);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            this.tasks = await response.json();
-            if (!Array.isArray(this.tasks)) {
-                console.error('Expected tasks to be an array but got:', typeof this.tasks);
-                this.tasks = [];
-            }
+            const raw = await response.json();
+            this.tasks = Array.isArray(raw) ? raw.map(t => ({ ...t, id: t.id ?? (t._id ? String(t._id) : undefined) })) : [];
             this.renderTasks();
         } catch (error) {
             console.error('Error loading tasks:', error);
@@ -43,10 +52,10 @@ class TodoApp {
 
     async handleSubmit(e) {
         e.preventDefault();
-        
+
         const title = document.getElementById('taskTitle').value.trim();
         const description = document.getElementById('taskDescription').value.trim();
-        
+
         if (!title) {
             this.showError('Please enter a task title');
             return;
@@ -58,7 +67,7 @@ class TodoApp {
             } else {
                 await this.createTask(title, description);
             }
-            
+
             this.resetForm();
             this.loadTasks();
         } catch (error) {
@@ -68,46 +77,37 @@ class TodoApp {
     }
 
     async createTask(title, description) {
-        const response = await fetch('http://localhost:3000/api/tasks', {
+        const response = await fetch(this.API_BASE, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ title, description })
         });
-        
+
         if (!response.ok) {
             throw new Error('Failed to create task');
         }
     }
 
     async updateTask(id, title, description, completed = null) {
-        const task = this.tasks.find(t => t.id == id);
-        const completedStatus = completed !== null ? completed : task.completed;
-        
-        const response = await fetch(`http://localhost:3000/api/tasks/${id}`, {
+        const task = this.tasks.find(t => (t.id ?? t._id) == id);
+        const completedStatus = completed !== null ? completed : task?.completed;
+
+        const response = await fetch(`${this.API_BASE}/${id}`, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ title, description, completed: completedStatus })
         });
-        
+
         if (!response.ok) {
             throw new Error('Failed to update task');
         }
     }
 
     async deleteTask(id) {
-        if (!confirm('Are you sure you want to delete this task?')) {
-            return;
-        }
-        
+        if (!confirm('Are you sure you want to delete this task?')) return;
+
         try {
-            const response = await fetch(`http://localhost:3000/api/tasks/${id}`, {
-                method: 'DELETE'
-            });
-            
+            const response = await fetch(`${this.API_BASE}/${id}`, { method: 'DELETE' });
             if (response.ok) {
                 this.loadTasks();
             } else {
@@ -120,7 +120,7 @@ class TodoApp {
     }
 
     async toggleComplete(id) {
-        const task = this.tasks.find(t => t.id == id);
+        const task = this.tasks.find(t => (t.id ?? t._id) == id);
         try {
             await this.updateTask(id, task.title, task.description, !task.completed);
             this.loadTasks();
@@ -131,7 +131,7 @@ class TodoApp {
     }
 
     editTask(id) {
-        const task = this.tasks.find(t => t.id == id);
+        const task = this.tasks.find(t => (t.id ?? t._id) == id);
         if (task) {
             this.editingTaskId = id;
             document.getElementById('taskTitle').value = task.title;
@@ -161,11 +161,7 @@ class TodoApp {
     }
 
     getFilteredTasks() {
-        if (!Array.isArray(this.tasks)) {
-            console.error('this.tasks is not an array:', this.tasks);
-            return [];
-        }
-        
+        if (!Array.isArray(this.tasks)) return [];
         switch (this.currentFilter) {
             case 'completed':
                 return this.tasks.filter(task => task.completed);
@@ -181,14 +177,7 @@ class TodoApp {
         const emptyState = document.getElementById('emptyState');
         const filteredTasks = this.getFilteredTasks();
 
-        if (!Array.isArray(filteredTasks)) {
-            console.error('filteredTasks is not an array:', filteredTasks);
-            taskList.innerHTML = '';
-            emptyState.style.display = 'block';
-            return;
-        }
-
-        if (filteredTasks.length === 0) {
+        if (!Array.isArray(filteredTasks) || filteredTasks.length === 0) {
             taskList.innerHTML = '';
             emptyState.style.display = 'block';
             return;
@@ -196,14 +185,12 @@ class TodoApp {
 
         emptyState.style.display = 'none';
         taskList.innerHTML = filteredTasks.map(task => this.createTaskHTML(task)).join('');
+        this.bindDynamicEvents();
     }
 
     createTaskHTML(task) {
-        const date = new Date(task.created_at).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        });
+        const created = task.created_at ? new Date(task.created_at) : new Date();
+        const date = created.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
         return `
             <div class="task-item ${task.completed ? 'completed' : 'pending'}">
@@ -214,12 +201,11 @@ class TodoApp {
                         <div class="task-date">Created: ${date}</div>
                     </div>
                     <div class="task-actions">
-                        <button class="btn-sm ${task.completed ? 'btn-secondary' : 'btn-success'}" 
-                                onclick="app.toggleComplete(${task.id})">
+                        <button class="btn-sm ${task.completed ? 'btn-secondary' : 'btn-success'}" data-action="toggle" data-id="${task.id}">
                             ${task.completed ? 'Undo' : 'Complete'}
                         </button>
-                        <button class="btn-sm btn-warning" onclick="app.editTask(${task.id})">Edit</button>
-                        <button class="btn-sm btn-danger" onclick="app.deleteTask(${task.id})">Delete</button>
+                        <button class="btn-sm btn-warning" data-action="edit" data-id="${task.id}">Edit</button>
+                        <button class="btn-sm btn-danger" data-action="delete" data-id="${task.id}">Delete</button>
                     </div>
                 </div>
             </div>
@@ -233,7 +219,7 @@ class TodoApp {
     }
 
     showError(message) {
-        alert(message); // In production, use a better notification system
+        alert(message);
     }
 }
 
