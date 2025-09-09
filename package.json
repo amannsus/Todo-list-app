@@ -1,14 +1,19 @@
 {
   "name": "todo-list-app",
   "version": "1.0.0",
-  "description": "Full-stack To-Do List application with MySQL",
+  "description": "Full-stack To-Do List application with MongoDB",
   "main": "backend/server.js",
   "scripts": {
     "start": "node backend/server.js",
     "dev": "nodemon backend/server.js",
     "install-deps": "cd backend && npm install"
   },
-  "keywords": ["todo", "task-manager", "nodejs", "mysql"],
+  "keywords": [
+    "todo",
+    "task-manager",
+    "nodejs",
+    "mongodb"
+  ],
   "author": "Your Name",
   "license": "MIT"
 }
