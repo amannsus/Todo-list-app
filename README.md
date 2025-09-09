@@ -140,20 +140,6 @@ This project is licensed under the **MIT License**.
 
 ---
 
-## 🤝 Contributing
 
-Contributions are welcome! If you'd like to improve the app:
 
-```bash
-1. Fork the repo
-2. Create a new branch: git checkout -b feature-name
-3. Commit your changes: git commit -m 'Added new feature'
-4. Push to the branch: git push origin feature-name
-5. Open a Pull Request
-```
 
----
-
-## ⭐ Support
-
-If you like this project, give it a **star** ⭐ on [GitHub](https://github.com/your-username/todo-list-app)!
