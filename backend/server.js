@@ -5,7 +5,7 @@ require('dotenv').config();
 const { connectDB } = require('./config/database');
 const taskRoutes = require('./routes/tasks');
 
-const app = express();
+const app =  express();
 
 // Connect to MongoDB first
 connectDB();
